@@ -1,0 +1,68 @@
+options:
+  volume-backend-name:
+    type: string
+    default: 'cinder-nfs'
+    description: |-
+      Service backend name to present to Cinder
+      If left empty, application's name will be used as backend name
+
+  nfs-shares:
+    type: string
+    default: ''
+    description: |-
+      'A list of nfs shares in format of <host>:<share>, each on their
+      own line, to which the driver should attempt to provision new
+      Cinder volumes into.
+
+      # example
+      192.168.1.200:/storage
+      192.168.1.201:/storage
+
+      Above content will be writtent to /etc/cinder/nfs_shares or the file
+      specified in nfs-shares-config option'
+
+  nfs-shares-config:
+    type: string
+    default: "/etc/cinder/nfs_shares"
+    description: |
+      The file name that contain a a list of nfs-shares
+
+  nfs-mount-point-base:
+    type: string
+    default: "/var/lib/cinder/nfs"
+    description: Directory where cinder-volume mounts all NFS shares.
+
+  nfs-mount-options:
+    type: string
+    default: ''
+    description: |-
+      Mount options passed to NFS client.
+      See NFS man page for available mount options
+
+  nfs-mount-attempts:
+    type: int
+    default: 3
+    description: |-
+       Number of attempts to mount NFS shares before raising an error.
+       At least one attempt will be made to mount an NFS share, regardless
+       of the value specified.
+  nfs-snapshot-support:
+    type: boolean
+    default: False
+    description: |
+       Enable support for snapshots on the NFS driver. 
+       Platforms using libvirt <1.2.7 will encounter issues with this feature.
+
+  nfs-qcow2-volumes:
+    type: boolean
+    default: False
+    description: |
+       Create volumes as QCOW2 files rather than raw files.
+
+  nfs-sparsed-volumes:
+    type: boolean
+    default: True
+    description: |
+       'Create volumes as sparsed files which take no space. 
+       If set to False volume is created as regular file. In such case volume 
+       creation takes a lot of time.'

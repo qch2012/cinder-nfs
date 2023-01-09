@@ -1,0 +1,7 @@
+- project:
+    templates:
+      - charm-unit-jobs
+    vars:
+      needs_charm_build: true
+      build_type: charmcraft
+      charm_build_name: cinder-nfs
