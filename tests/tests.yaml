@@ -1,4 +1,4 @@
-charm_name: cinder-three-par
+charm_name: cinder-nfs
 
 target_deploy_status:
   cinder:
@@ -6,7 +6,7 @@ target_deploy_status:
     workload-status-message-prefix: "Missing relations:"
 
 tests:
-  - tests.tests_cinder_three_par.CinderThreeParTest
+  - tests.tests_cinder_nfs.CinderNFSTest
 
 configure: []
 gate_bundles:

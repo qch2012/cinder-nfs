@@ -46,9 +46,10 @@ options:
        Number of attempts to mount NFS shares before raising an error.
        At least one attempt will be made to mount an NFS share, regardless
        of the value specified.
+
   nfs-snapshot-support:
     type: boolean
-    default: False
+    default: True 
     description: |
        Enable support for snapshots on the NFS driver. 
        Platforms using libvirt <1.2.7 will encounter issues with this feature.

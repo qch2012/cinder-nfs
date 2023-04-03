@@ -19,6 +19,7 @@ from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus
 from ops_openstack.plugins.classes import CinderStoragePluginCharm
 
+
 import os
 import io
 import shutil
@@ -33,6 +34,13 @@ def _check_config(charm_config):
         return BlockedStatus("NFS shares not configured")
 
     return ActiveStatus("Unit is ready")
+
+
+def _write_config(data, path):
+    with open(path, "w+") as file:
+        file.write(data)
+    os.chmod(path, 0o640)
+    shutil.chown(path, user="root", group="cinder")
 
 
 class CharmCinderNFSCharm(CinderStoragePluginCharm):
@@ -72,16 +80,13 @@ class CharmCinderNFSCharm(CinderStoragePluginCharm):
                 value = self.framework.model.app.name
 
             if key == "nfs-shares":
-                nfs_shares = os.linesep.join([s for s in value.splitlines() if s])
+                nfs_shares = os.linesep.join([s for s in value.splitlines()
+                                              if s])
                 buff = io.StringIO(nfs_shares)
                 continue
 
             if key == "nfs-shares-config":
-                path = value
-                with open(path, "w+") as f:
-                    print(buff.getvalue(), file=f)
-                os.chmod(path, 0o640)
-                shutil.chown(path, user="root", group="cinder")
+                _write_config(buff.getvalue(), value)
 
             options.append((key.replace("-", "_"), value))
 

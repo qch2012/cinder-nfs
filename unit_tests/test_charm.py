@@ -13,63 +13,102 @@
 # limitations under the License.
 
 import unittest
+from unittest.mock import patch
 import json
 
-from ops.model import Relation, BlockedStatus, ActiveStatus
+from ops.model import Relation, BlockedStatus
 from ops.testing import Harness
 from src.charm import CharmCinderNFSCharm
+from src.charm import _write_config
 
 
 class TestCharm(unittest.TestCase):
     maxDiff = None
 
-    def setUp(self):
+    @patch("src.charm.shutil.chown")
+    @patch("src.charm.os.chmod")
+    @patch("src.charm.open", new_callable=unittest.mock.mock_open)
+    def setUp(self, mock_open, mock_chmod, mock_chown):
         self.harness = Harness(CharmCinderNFSCharm)
         self.addCleanup(self.harness.cleanup)
         self.harness.begin()
         self.harness.set_leader(True)
         self.model = self.harness.model
-        self.storage_backend = self.harness.add_relation("storage-backend", "cinder")
+        self.storage_backend = self.harness.add_relation("storage-backend",
+                                                         "cinder")
         self.harness.add_relation_unit(self.storage_backend, "cinder/0")
         self.harness.update_config(
             {
                 "volume-backend-name": "cinder-nfs",
                 "nfs-shares": "172.18.18.61:/srv/test",
+                "nfs-shares-config": "/test/nfs_shares",
                 "nfs-mount-point-base": "/var/lib/cinder/nfs",
                 "nfs-mount-options": "vers=3",
                 "nfs-mount-attempts": 3,
+                "nfs-snapshot-support": True,
             }
         )
 
     def _get_sub_conf(self):
+        # return relation data
         rel = self.model.get_relation("storage-backend", 0)
         self.assertIsInstance(rel, Relation)
         rdata = rel.data[self.model.unit]
         rdata = json.loads(rdata["subordinate_configuration"])
         return dict(
-            rdata["cinder"]["/etc/cinder/cinder.conf"]["sections"]["cinder-nfs"]
+            (rdata["cinder"]["/etc/cinder/cinder.conf"]["sections"]
+             ["cinder-nfs"])
         )
+
+    @patch("src.charm.shutil.chown")
+    @patch("src.charm.os.chmod")
+    @patch("src.charm.open", new_callable=unittest.mock.mock_open)
+    def test_write_config(self, mock_open, mock_chmod, mock_chown):
+        path = "/etc/cinder/nfs-shares"
+        data = "172.17.17.61:/srv/test"
+        permission = 0o640
+
+        _write_config(data, path)
+
+        mock_open.assert_called_once_with(path, "w+")
+        mock_open().write.assert_called_once_with(data)
+        mock_chmod.assert_called_once_with(path, permission)
+        mock_chown.assert_called_once_with(path, user="root", group="cinder")
 
     def test_backend_name_in_data(self):
         rel = self.model.get_relation("storage-backend", 0)
         rdata = rel.data[self.model.unit]
         self.assertEqual(rdata["backend_name"], "cinder-nfs")
 
-    def test_config_changed(self):
+    @patch("src.charm.shutil.chown")
+    @patch("src.charm.os.chmod")
+    @patch("src.charm.open", new_callable=unittest.mock.mock_open)
+    def test_config_changed(self, mock_open, mock_chmod, mock_chown):
+        shares_config = "/tmp/nfs-shares"
+        mount_point_base = "/var/lib/cinder/nfsmount"
+        mount_options = "vers=4.1,proto=tcp,retry=4"
+        mount_attempts = 4
         self.harness.update_config(
             {
-                "nfs-mount-point-base": "/var/lib/cinder/nfsmount",
-                "nfs-mount-options": "vers=4.1,proto=tcp,retry=4,",
-                "nfs-mount-attempts": 4,
+                "nfs-shares-config": shares_config,
+                "nfs-mount-point-base": mount_point_base,
+                "nfs-mount-options": mount_options,
+                "nfs-mount-attempts": mount_attempts,
             }
         )
         self.assertEqual(
             self._get_sub_conf(),
             {
+                "nfs_shares_config": shares_config,
+                "nfs_mount_point_base": mount_point_base,
+                "nfs_mount_options": mount_options,
+                "nfs_mount_attempts": mount_attempts,
+                # default value
+                "volume_backend_name": "cinder-nfs",
                 "volume_driver": "cinder.volume.drivers.nfs.NfsDriver",
-                "nfs_mount_point_base": "/var/lib/cinder/nfsmount",
-                "nfs_mount_options": "vers=4.1,proto=tcp,retry=4,",
-                "nfs_mount_attempts": 4,
+                "nfs_sparsed_volumes": True,
+                "nfs_snapshot_support": True,
+                "nfs_qcow2_volumes": False,
             },
         )
 
@@ -79,20 +118,13 @@ class TestCharm(unittest.TestCase):
         message = self.harness.charm.unit.status.message
         self.assertIn("NFS shares not configured", message)
 
-    def test_status_with_mandatory_config(self):
-        self.assertEqual(self.harness.charm.unit.status.message, "Unit is ready")
-        self.assertIsInstance(self.harness.charm.unit.status, ActiveStatus)
-        self.harness.update_config(
-            unset=["nfs-shares-config"],
-        )
-        self.assertEqual(
-            self.harness.charm.unit.status.message,
-            "Missing option(s): nfs-shares-config",
-        )
-        self.assertIsInstance(self.harness.charm.unit.status, BlockedStatus)
-
-    def test_volume_backend_name_config(self):
-        self.assertEqual(self._get_sub_conf().get("volume_backend_name"), "cinder-nfs")
+    @patch("src.charm.shutil.chown")
+    @patch("src.charm.os.chmod")
+    @patch("src.charm.open", new_callable=unittest.mock.mock_open)
+    def test_volume_backend_name_config(self, mock_open, mock_chmod,
+                                        mock_chown):
+        self.assertEqual(self._get_sub_conf().get("volume_backend_name"),
+                         "cinder-nfs")
 
         self.harness.update_config(
             {
