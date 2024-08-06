@@ -1,3 +1,8 @@
+**WARNING**: This repository is outedated and has moved to 
+* https://opendev.org/openstack/charm-cinder-nfs
+
+
+
 # Overview
 
 The cinder charm is the Openstack block storage (i.e: Volume) service, whereas the cinder-nfs charm works as a subordinate of cinder, implementing a NFS backend.
